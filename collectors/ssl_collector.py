@@ -6,6 +6,7 @@ operated by Sectigo and freely accessible.
 """
 from __future__ import annotations
 
+import fnmatch
 import json
 import socket
 import ssl
@@ -55,6 +56,7 @@ class SslCollector(BaseCollector):
         try:
             from cryptography import x509
             from cryptography.hazmat.backends import default_backend
+            from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
             cert = x509.load_der_x509_certificate(der, default_backend())
             cn = ""
             try:
@@ -63,13 +65,15 @@ class SslCollector(BaseCollector):
                 pass
             issuer = cert.issuer.rfc4514_string()
             sigalg = cert.signature_algorithm_oid._name  # type: ignore[attr-defined]
-            key_size = getattr(cert.public_key(), "key_size", 0)  # type: ignore[attr-defined]
+            public_key = cert.public_key()
+            is_ecdsa = isinstance(public_key, EllipticCurvePublicKey)
+            key_size = getattr(public_key, "key_size", 0)  # type: ignore[attr-defined]
             not_before = cert.not_valid_before_utc  # type: ignore[attr-defined]
             not_after = cert.not_valid_after_utc  # type: ignore[attr-defined]
             serial = format(cert.serial_number, "x")
             try:
                 san_ext = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
-                alt_names = [str(name) for name in san_ext.value]  # type: ignore[attr-defined]
+                alt_names = [str(name.value) for name in san_ext.value]  # type: ignore[attr-defined]
             except Exception:
                 alt_names = []
         except Exception as exc:
@@ -77,7 +81,13 @@ class SslCollector(BaseCollector):
             return None
 
         now = datetime.now(timezone.utc)
-        valid_for_host = host.lower() in [a.lower() for a in alt_names] or host.lower() == cn.lower()
+        host_lower = host.lower()
+        alt_lower = [a.lower() for a in alt_names]
+        valid_for_host = (
+            host_lower in alt_lower
+            or host_lower == cn.lower()
+            or any(fnmatch.fnmatch(host_lower, pat) for pat in alt_lower)
+        )
         features = SslFeatures(
             subject=f"CN={cn}",
             issuer=issuer,
@@ -92,6 +102,7 @@ class SslCollector(BaseCollector):
             serial_number=serial,
             signature_algorithm=sigalg,
             key_size=key_size,
+            is_ecdsa=is_ecdsa,
         )
         return features
 

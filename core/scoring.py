@@ -109,7 +109,7 @@ def score_ssl(ssl: SslFeatures) -> List[ScoreBreakdown]:
     if not ssl.valid_for_host:
         _add(breakdown, "ssl.mismatch", 15,
              "TLS certificate does not match the hostname")
-    if ssl.key_size and ssl.key_size < 2048 and "ECC" not in (ssl.signature_algorithm or "").upper() and "EC" not in (ssl.signature_algorithm or "").upper():
+    if ssl.key_size and ssl.key_size < 2048 and not ssl.is_ecdsa:
         _add(breakdown, "ssl.key", 4, f"Weak TLS key size ({ssl.key_size} bits)")
     if ssl.days_remaining is not None and 0 < ssl.days_remaining < 7:
         _add(breakdown, "ssl.expiry", 4,
@@ -151,9 +151,13 @@ def score_content(content: ContentFeatures) -> List[ScoreBreakdown]:
     if len(content.redirect_chain) > 3:
         _add(breakdown, "content.redirects", 8,
              f"Long redirect chain ({len(content.redirect_chain)} hops)")
-    if content.external_resources:
+    ext_n = len(content.external_resources)
+    if ext_n >= 10:
         _add(breakdown, "content.external", 7,
-             f"Page loads resources from {len(content.external_resources)} external hosts")
+             f"Page loads resources from {ext_n} external hosts")
+    elif ext_n >= 5:
+        _add(breakdown, "content.external", 3,
+             f"Page loads resources from {ext_n} external hosts")
     if content.status_code and content.status_code >= 400:
         _add(breakdown, "content.error", 4,
              f"Server returned HTTP {content.status_code}")

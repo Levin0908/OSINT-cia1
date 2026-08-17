@@ -99,6 +99,7 @@ class SslFeatures(BaseModel):
     serial_number: str = ""
     signature_algorithm: str = ""
     key_size: int = 0
+    is_ecdsa: bool = False
     ct_log_hits: Optional[int] = None
 
 

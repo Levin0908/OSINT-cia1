@@ -9,6 +9,7 @@ import re
 from typing import Any, Dict, List
 from urllib.parse import urlparse, urljoin
 
+import tldextract
 from bs4 import BeautifulSoup
 
 try:
@@ -30,13 +31,50 @@ BRAND_KEYWORDS = [
     "stripe", "coinbase", "binance",
 ]
 
-PASSWORD_PATTERNS = [
-    re.compile(r'type=["\\\']?password["\\\']?', re.I),
-    re.compile(r'name=["\\\']?(?:password|passwd|pass)["\\\']?', re.I),
-]
-CARD_PATTERNS = [
-    re.compile(r'name=["\\\']?(?:cardnumber|card_number|ccnum|cc_number|cvv|cvc)["\\\']?', re.I),
-]
+OPERATOR_DOMAINS: Dict[str, set] = {
+    "google": {
+        "google.com", "youtube.com", "gmail.com", "google.co.uk",
+        "googleapis.com", "gstatic.com", "ggpht.com", "ytimg.com",
+        "doubleclick.net", "youtu.be", "google.co.in", "google.ca",
+        "google.com.au", "google.de", "google.fr", "google.es",
+        "google.it", "google.co.jp", "google.com.br",
+    },
+    "microsoft": {
+        "microsoft.com", "outlook.com", "live.com", "office.com",
+        "office365.com", "onedrive.com", "azure.com", "bing.com",
+        "msn.com", "hotmail.com", "xbox.com", "linkedin.com",
+    },
+    "apple": {
+        "apple.com", "icloud.com", "me.com", "appleid.apple.com",
+    },
+    "amazon": {
+        "amazon.com", "amazonaws.com", "amazon.co.uk", "cloudfront.net",
+    },
+    "meta": {
+        "facebook.com", "instagram.com", "whatsapp.com",
+        "messenger.com", "meta.com", "fb.com", "fb.me",
+    },
+    "netflix": {
+        "netflix.com", "nflxext.com", "nflxvideo.net", "nflximg.net",
+    },
+}
+
+PASSWORD_NAMES = {"password", "passwd", "pass"}
+CARD_NAMES = {"cardnumber", "card_number", "ccnum", "cc_number", "cvv", "cvc"}
+
+
+def _operator_for(url: str) -> Optional[str]:
+    """Return the brand name that owns the registered domain of `url`,
+    or None if it isn't in our operator whitelist."""
+    try:
+        rd = tldextract.extract(url).registered_domain or ""
+    except Exception:
+        return None
+    rd = rd.lower()
+    for op, domains in OPERATOR_DOMAINS.items():
+        if rd in domains:
+            return op
+    return None
 
 
 class ContentCollector(BaseCollector):
@@ -86,19 +124,22 @@ class ContentCollector(BaseCollector):
                     host = urlparse(src).netloc
                     if host and host != urlparse(url).netloc:
                         external_resources.append(host)
-            lowered = (title + " " + meta_description + " " + url).lower()
+            url_operator = _operator_for(url)
+            text_blob = (title + " " + meta_description).lower()
             for brand in BRAND_KEYWORDS:
-                if brand in lowered and not url.lower().endswith(f"{brand}.com"):
-                    if brand in urlparse(url).netloc.lower():
-                        continue
+                if url_operator == brand:
+                    continue  # the brand owns this domain — not impersonation
+                if re.search(rf"\b{re.escape(brand)}\b", text_blob):
                     brand_impersonation.append(brand)
-            html_lower = content.decode("utf-8", errors="ignore").lower()
-            for pattern in PASSWORD_PATTERNS:
-                if pattern.search(html_lower):
+            for inp in soup.find_all("input"):
+                itype = (inp.get("type") or "").lower()
+                iname = (inp.get("name") or "").lower()
+                if itype == "password" or iname in PASSWORD_NAMES:
                     has_password_field = True
                     break
-            for pattern in CARD_PATTERNS:
-                if pattern.search(html_lower):
+            for inp in soup.find_all("input"):
+                iname = (inp.get("name") or "").lower()
+                if iname in CARD_NAMES:
                     has_credit_card_field = True
                     break
 
