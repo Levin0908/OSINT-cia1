@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - OSINT Phishing Investigator{% endblock %}
+{% block content %}
+<section class="hero">
+    <div class="hero-text">
+        <h1>OSINT Phishing Investigation Platform</h1>
+        <p>Automated collection and correlation of public threat-intelligence indicators. Submit a URL or domain to start an investigation.</p>
+        <a href="/investigate" class="btn btn-primary">Start investigation &rarr;</a>
+    </div>
+    <div class="hero-stat">
+        <div class="stat-number">{{ stats.total_investigations }}</div>
+        <div class="stat-label">Investigations</div>
+    </div>
+</section>
+
+<section class="card-grid">
+    <div class="card">
+        <div class="card-header">Risk levels</div>
+        <div class="risk-bars">
+            <div class="risk-bar level-critical">
+                <span class="risk-label">Critical</span>
+                <span class="risk-count">{{ stats.by_risk_level.get('critical', 0) }}</span>
+            </div>
+            <div class="risk-bar level-high">
+                <span class="risk-label">High</span>
+                <span class="risk-count">{{ stats.by_risk_level.get('high', 0) }}</span>
+            </div>
+            <div class="risk-bar level-medium">
+                <span class="risk-label">Medium</span>
+                <span class="risk-count">{{ stats.by_risk_level.get('medium', 0) }}</span>
+            </div>
+            <div class="risk-bar level-low">
+                <span class="risk-label">Low</span>
+                <span class="risk-count">{{ stats.by_risk_level.get('low', 0) }}</span>
+            </div>
+            <div class="risk-bar level-informational">
+                <span class="risk-label">Informational</span>
+                <span class="risk-count">{{ stats.by_risk_level.get('informational', 0) }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Verdict distribution</div>
+        <ul class="verdict-list">
+            {% for v, c in stats.by_verdict.items() %}
+            <li><span class="verdict verdict-{{ v }}">{{ v.replace('_', ' ') }}</span><span class="verdict-count">{{ c }}</span></li>
+            {% endfor %}
+            {% if not stats.by_verdict %}
+            <li class="muted">No investigations yet</li>
+            {% endif %}
+        </ul>
+    </div>
+    <div class="card">
+        <div class="card-header">Top discovered IPs</div>
+        <ul class="ioc-list">
+            {% for ip in stats.top_ips %}
+            <li><span class="ioc-type">IP</span> {{ ip.domain }} <span class="muted">&times;{{ ip.hits }}</span></li>
+            {% endfor %}
+            {% if not stats.top_ips %}
+            <li class="muted">No data yet</li>
+            {% endif %}
+        </ul>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-header">
+        Recent investigations
+        <a href="/history" class="card-link">view all</a>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Target</th>
+                <th>Risk</th>
+                <th>Level</th>
+                <th>Verdict</th>
+                <th>When</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in recent %}
+            <tr>
+                <td class="mono">{{ inv.target }}</td>
+                <td><span class="score score-{{ inv.risk_level }}">{{ inv.risk_score }}</span></td>
+                <td>{{ inv.risk_level }}</td>
+                <td>{{ inv.verdict.replace('_', ' ') }}</td>
+                <td class="muted">{{ inv.timestamp }}</td>
+                <td><a href="/report/{{ inv.id }}" class="btn btn-tiny">open</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="muted">No investigations yet. <a href="/investigate">Start one &rarr;</a></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

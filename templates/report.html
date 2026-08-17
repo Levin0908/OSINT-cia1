@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Report - {{ result.target }}{% endblock %}
+{% block content %}
+<section class="card report-header">
+    <div class="risk-meter">
+        <div class="risk-dial risk-{{ result.risk_level }}">
+            <span class="risk-number">{{ result.risk_score }}</span>
+            <span class="risk-tag">/100</span>
+        </div>
+        <div class="risk-meta">
+            <div class="risk-level-label level-{{ result.risk_level }}">{{ result.risk_level }}</div>
+            <div class="verdict-label">Verdict: <strong>{{ result.verdict.replace('_', ' ') }}</strong></div>
+            <div class="muted mono">{{ result.target }}</div>
+            <div class="muted">Investigated {{ result.timestamp }}</div>
+        </div>
+    </div>
+    <p class="summary">{{ result.summary }}</p>
+    <div class="actions">
+        <a href="/api/investigations/{{ result.id }}/report?format=json" target="_blank" class="btn btn-tiny">JSON</a>
+        <a href="/api/investigations/{{ result.id }}/report?format=markdown" target="_blank" class="btn btn-tiny">Markdown</a>
+        <a href="/api/investigations/{{ result.id }}/report?format=pdf" target="_blank" class="btn btn-tiny">PDF</a>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-header">Correlated findings</div>
+    <ul class="bullet-list">
+        {% for note in result.correlations %}
+        <li>{{ note }}</li>
+        {% endfor %}
+    </ul>
+</section>
+
+<section class="card">
+    <div class="card-header">Score breakdown</div>
+    <table class="data-table">
+        <thead><tr><th>Component</th><th>Points</th><th>Reason</th></tr></thead>
+        <tbody>
+        {% for entry in result.score_breakdown %}
+        <tr>
+            <td><span class="badge">{{ entry.component }}</span></td>
+            <td>{{ entry.points }}</td>
+            <td>{{ entry.reason }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="muted">No contributors.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<div class="card-grid">
+    {% if result.url %}
+    <div class="card">
+        <div class="card-header">URL features</div>
+        <dl class="kv">
+            <dt>Scheme</dt><dd>{{ result.url.scheme }}</dd>
+            <dt>Host</dt><dd class="mono">{{ result.url.netloc }}</dd>
+            <dt>TLD</dt><dd>.{{ result.url.tld }} (risk={{ result.url.tld_risk }})</dd>
+            <dt>Length</dt><dd>{{ result.url.url_length }}</dd>
+            <dt>Subdomains</dt><dd>{{ result.url.num_subdomains }}</dd>
+            <dt>IP host</dt><dd>{{ result.url.has_ip_host }}</dd>
+            <dt>Punycode</dt><dd>{{ result.url.punycode }}</dd>
+            <dt>Suspicious keywords</dt><dd>{{ result.url.suspicious_keywords|join(', ') or '—' }}</dd>
+            <dt>Brand keywords</dt><dd>{{ result.url.risk_keywords|join(', ') or '—' }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+    {% if result.domain %}
+    <div class="card">
+        <div class="card-header">Domain / WHOIS</div>
+        <dl class="kv">
+            <dt>Domain</dt><dd class="mono">{{ result.domain.domain }}</dd>
+            <dt>Registrar</dt><dd>{{ result.domain.registrar or 'unknown' }}</dd>
+            <dt>Created</dt><dd>{{ result.domain.creation_date or 'unknown' }}</dd>
+            <dt>Age</dt><dd>{{ result.domain.age_days }} days</dd>
+            <dt>Expires</dt><dd>{{ result.domain.expiration_date or 'unknown' }}</dd>
+            <dt>NS</dt><dd>{{ result.domain.name_servers|join(', ') or '—' }}</dd>
+            <dt>Privacy</dt><dd>{{ 'yes' if result.domain.is_private else 'no' }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+    {% if result.dns %}
+    <div class="card">
+        <div class="card-header">DNS</div>
+        <dl class="kv">
+            <dt>A</dt><dd class="mono">{{ result.dns.a|join(', ') or '—' }}</dd>
+            <dt>AAAA</dt><dd class="mono">{{ result.dns.aaaa|join(', ') or '—' }}</dd>
+            <dt>MX</dt><dd class="mono">{{ result.dns.mx|join(', ') or '—' }}</dd>
+            <dt>NS</dt><dd class="mono">{{ result.dns.ns|join(', ') or '—' }}</dd>
+            <dt>SPF</dt><dd>{{ 'yes' if result.dns.has_spf else 'no' }}</dd>
+            <dt>DMARC</dt><dd>{{ 'yes' if result.dns.has_dmarc else 'no' }}</dd>
+            <dt>DKIM</dt><dd>{{ 'yes' if result.dns.has_dkim else 'no' }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+    {% if result.ip %}
+    <div class="card">
+        <div class="card-header">Hosting IP</div>
+        <dl class="kv">
+            <dt>IP</dt><dd class="mono">{{ result.ip.ip }}</dd>
+            <dt>Country</dt><dd>{{ result.ip.country or '—' }}</dd>
+            <dt>ISP</dt><dd>{{ result.ip.isp or '—' }}</dd>
+            <dt>Org</dt><dd>{{ result.ip.org or '—' }}</dd>
+            <dt>Reputation</dt><dd>{{ result.ip.reputation }}</dd>
+            <dt>Abuse score</dt><dd>{{ result.ip.abuse_confidence if result.ip.abuse_confidence is not none else '—' }}</dd>
+            <dt>Tor</dt><dd>{{ 'yes' if result.ip.is_tor else 'no' }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+    {% if result.ssl %}
+    <div class="card">
+        <div class="card-header">TLS certificate</div>
+        <dl class="kv">
+            <dt>Subject</dt><dd class="mono">{{ result.ssl.subject }}</dd>
+            <dt>Issuer</dt><dd class="mono">{{ result.ssl.issuer }}</dd>
+            <dt>Self-signed</dt><dd>{{ 'yes' if result.ssl.self_signed else 'no' }}</dd>
+            <dt>Expired</dt><dd>{{ 'yes' if result.ssl.expired else 'no' }}</dd>
+            <dt>Valid for host</dt><dd>{{ 'yes' if result.ssl.valid_for_host else 'no' }}</dd>
+            <dt>Days left</dt><dd>{{ result.ssl.days_remaining if result.ssl.days_remaining is not none else '—' }}</dd>
+            <dt>Key size</dt><dd>{{ result.ssl.key_size }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+    {% if result.content %}
+    <div class="card">
+        <div class="card-header">Web content</div>
+        <dl class="kv">
+            <dt>Final URL</dt><dd class="mono">{{ result.content.final_url }}</dd>
+            <dt>Status</dt><dd>{{ result.content.status_code }}</dd>
+            <dt>Title</dt><dd>{{ result.content.title or '—' }}</dd>
+            <dt>Password</dt><dd>{{ 'yes' if result.content.has_password_field else 'no' }}</dd>
+            <dt>Card</dt><dd>{{ 'yes' if result.content.has_credit_card_field else 'no' }}</dd>
+            <dt>Brand</dt><dd>{{ result.content.brand_impersonation|join(', ') or '—' }}</dd>
+            <dt>Redirects</dt><dd>{{ result.content.redirect_chain|length }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+    {% if result.reputation %}
+    <div class="card">
+        <div class="card-header">Threat intelligence</div>
+        <dl class="kv">
+            <dt>PhishTank</dt><dd>{{ 'hit' if result.reputation.phishtank_hit else 'no hit' }}</dd>
+            <dt>VT malicious</dt><dd>{{ result.reputation.virustotal_malicious }} / {{ result.reputation.virustotal_total }}</dd>
+            <dt>VT suspicious</dt><dd>{{ result.reputation.virustotal_suspicious }}</dd>
+            <dt>Sources</dt><dd>{{ result.reputation.sources|join(', ') or '—' }}</dd>
+        </dl>
+    </div>
+    {% endif %}
+</div>
+
+<section class="card">
+    <div class="card-header">Indicators of compromise</div>
+    <table class="data-table">
+        <thead><tr><th>Type</th><th>Value</th><th>Source</th><th>Confidence</th><th>Tags</th></tr></thead>
+        <tbody>
+        {% for ioc in result.iocs %}
+        <tr class="{% if ioc.malicious %}ioc-malicious{% endif %}">
+            <td><span class="badge">{{ ioc.type }}</span></td>
+            <td class="mono">{{ ioc.value }}</td>
+            <td>{{ ioc.source }}</td>
+            <td>{{ ioc.confidence }}%</td>
+            <td>{{ ioc.tags|join(', ') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="muted">No IOCs extracted.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="card">
+    <div class="card-header">Recommendations</div>
+    <ul class="bullet-list">
+        {% for rec in result.recommendations %}
+        <li>{{ rec }}</li>
+        {% endfor %}
+    </ul>
+</section>
+
+{% if result.errors %}
+<section class="card">
+    <div class="card-header">Collector errors</div>
+    <ul class="bullet-list">
+        {% for e in result.errors %}<li class="muted">{{ e }}</li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+{% endblock %}

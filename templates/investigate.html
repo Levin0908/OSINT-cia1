@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Investigate - OSINT Phishing Investigator{% endblock %}
+{% block content %}
+<section class="card">
+    <div class="card-header">New investigation</div>
+    <p class="muted">Provide a URL or a domain. Active fetching (HTTP, TLS) is skipped automatically for raw domains.</p>
+    <form id="investigate-form" class="investigate-form">
+        <input id="target" type="text" required
+               placeholder="https://example.com/login or example.com"
+               autocomplete="off" />
+        <label class="checkbox">
+            <input type="checkbox" id="submit_urlscan" />
+            Submit to urlscan.io (requires API key)
+        </label>
+        <button type="submit" id="submit-btn" class="btn btn-primary">Investigate</button>
+    </form>
+    <div id="status" class="status hidden"></div>
+</section>
+
+<section id="results" class="hidden"></section>
+
+<script id="tpl-card" type="text/x-template">
+<div class="card">
+    <div class="card-header">{title}</div>
+    <div class="card-body">{body}</div>
+</div>
+</script>
+
+<script src="/static/js/investigate.js"></script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}History - OSINT Phishing Investigator{% endblock %}
+{% block content %}
+<section class="card">
+    <div class="card-header">Investigation history</div>
+    <input id="search" type="text" placeholder="Filter by target..." class="search-input" />
+    <table class="data-table" id="history-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Target</th>
+                <th>Risk</th>
+                <th>Level</th>
+                <th>Verdict</th>
+                <th>When</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in investigations %}
+            <tr>
+                <td>{{ inv.id }}</td>
+                <td class="mono">{{ inv.target }}</td>
+                <td><span class="score score-{{ inv.risk_level }}">{{ inv.risk_score }}</span></td>
+                <td>{{ inv.risk_level }}</td>
+                <td>{{ inv.verdict.replace('_', ' ') }}</td>
+                <td class="muted">{{ inv.timestamp }}</td>
+                <td><a href="/report/{{ inv.id }}" class="btn btn-tiny">open</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="muted">No investigations yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+<script>
+document.getElementById("search").addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll("#history-table tbody tr").forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? "" : "none";
+    });
+});
+</script>
+{% endblock %}
