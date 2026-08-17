@@ -14,3 +14,4 @@ reports/*.pdf
 *.egg-info/
 build/
 dist/
+tests/_tmp/
